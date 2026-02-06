@@ -115,5 +115,32 @@ function tryParseJson(str: string | null): unknown {
 }
 
 export async function copyToClipboard(text: string): Promise<void> {
-  await navigator.clipboard.writeText(text)
+  // 方法 1: 使用 Clipboard API (現代瀏覽器)
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch (e) {
+      console.warn('Clipboard API failed, trying fallback:', e)
+    }
+  }
+
+  // 方法 2: 使用 document.execCommand (fallback)
+  const textArea = document.createElement('textarea')
+  textArea.value = text
+  textArea.style.position = 'fixed'
+  textArea.style.left = '-9999px'
+  textArea.style.top = '-9999px'
+  document.body.appendChild(textArea)
+  textArea.focus()
+  textArea.select()
+
+  try {
+    document.execCommand('copy')
+  } catch (e) {
+    console.error('Copy failed:', e)
+    throw e
+  } finally {
+    document.body.removeChild(textArea)
+  }
 }

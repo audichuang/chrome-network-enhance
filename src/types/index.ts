@@ -7,6 +7,7 @@ export interface NetworkRequest {
   time: number;
   size: number;
   mimeType: string;
+  resourceType: string;
   requestHeaders: Header[];
   responseHeaders: Header[];
   requestBody: string | null;
@@ -20,10 +21,13 @@ export interface Header {
   value: string;
 }
 
+export type ResourceType = 'all' | 'fetch' | 'xhr' | 'document' | 'script' | 'stylesheet' | 'image' | 'other';
+
 export interface FilterState {
   search: string;
   statusFilter: 'all' | '2xx' | '3xx' | '4xx' | '5xx';
   methodFilter: 'all' | 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  resourceType: ResourceType;
 }
 
 export interface SelectionState {

@@ -3,6 +3,31 @@ import { NetworkRequest, Header } from '../../types'
 
 let requestIdCounter = 0
 
+// 判斷是否為 Fetch/XHR 類型的請求
+function isApiRequest(mimeType: string, url: string): boolean {
+  const apiMimeTypes = [
+    'application/json',
+    'application/xml',
+    'text/xml',
+    'text/plain',
+    'text/html',
+  ]
+
+  // 檢查 MIME type
+  if (apiMimeTypes.some(type => mimeType.includes(type))) {
+    return true
+  }
+
+  // 排除靜態資源
+  const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot']
+  const urlPath = new URL(url).pathname.toLowerCase()
+  if (staticExtensions.some(ext => urlPath.endsWith(ext))) {
+    return false
+  }
+
+  return true
+}
+
 export function useNetworkRequests() {
   const [requests, setRequests] = useState<NetworkRequest[]>([])
   const [isRecording, setIsRecording] = useState(true)
@@ -38,17 +63,25 @@ export function useNetworkRequests() {
         time: number
         startedDateTime: string
         serverIPAddress?: string
+        _resourceType?: string
       }
+
+      const mimeType = harEntry.response.content.mimeType || ''
+      const url = harEntry.request.url
+
+      // 取得資源類型
+      const resourceType = harEntry._resourceType || 'other'
 
       const networkRequest: NetworkRequest = {
         id,
-        url: harEntry.request.url,
+        url,
         method: harEntry.request.method,
         status: harEntry.response.status,
         statusText: harEntry.response.statusText,
         time: harEntry.time || 0,
         size: harEntry.response.content.size || 0,
-        mimeType: harEntry.response.content.mimeType || '',
+        mimeType,
+        resourceType,
         requestHeaders: harEntry.request.headers || [],
         responseHeaders: harEntry.response.headers || [],
         requestBody: harEntry.request.postData?.text || null,
@@ -57,7 +90,7 @@ export function useNetworkRequests() {
         serverIPAddress: harEntry.serverIPAddress,
       }
 
-      request.getContent((content, encoding) => {
+      request.getContent((content) => {
         networkRequest.responseBody = content
         setRequests((prev) => [...prev, networkRequest])
       })

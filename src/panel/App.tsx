@@ -14,6 +14,7 @@ function App() {
     search: '',
     statusFilter: 'all',
     methodFilter: 'all',
+    resourceType: 'fetch',
   })
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -30,6 +31,18 @@ function App() {
     }
     if (filter.methodFilter !== 'all' && req.method !== filter.methodFilter) {
       return false
+    }
+    // 資源類型過濾
+    if (filter.resourceType !== 'all') {
+      const resourceType = req.resourceType?.toLowerCase() || ''
+      if (filter.resourceType === 'fetch') {
+        // Fetch/XHR: 只顯示 xhr, fetch, 或 JSON 類型
+        if (!['xhr', 'fetch'].includes(resourceType) && !req.mimeType.includes('json')) {
+          return false
+        }
+      } else if (resourceType !== filter.resourceType) {
+        return false
+      }
     }
     return true
   })

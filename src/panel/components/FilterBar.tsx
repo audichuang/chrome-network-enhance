@@ -1,4 +1,4 @@
-import { FilterState } from '../../types'
+import { FilterState, ResourceType } from '../../types'
 
 interface FilterBarProps {
   filter: FilterState
@@ -44,6 +44,19 @@ export default function FilterBar({
       </button>
 
       <div className="w-px h-4 bg-gray-600" />
+
+      <select
+        value={filter.resourceType}
+        onChange={(e) => onFilterChange({ ...filter, resourceType: e.target.value as ResourceType })}
+        className="px-2 py-1 text-xs bg-[#3c3c3c] border border-gray-600 rounded focus:outline-none"
+      >
+        <option value="fetch">Fetch/XHR</option>
+        <option value="all">All</option>
+        <option value="document">Doc</option>
+        <option value="script">JS</option>
+        <option value="stylesheet">CSS</option>
+        <option value="image">Img</option>
+      </select>
 
       <input
         type="text"
