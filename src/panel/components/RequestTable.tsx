@@ -103,7 +103,7 @@ function RequestRow({ request, isSelected, isExpanded, onSelect, onToggleExpand,
           />
         </td>
         <td className={`p-2 font-mono ${getMethodColor(request.method)}`}>{request.method}</td>
-        <td className="p-2 truncate max-w-md" title={request.url}>
+        <td className="p-2 truncate max-w-md">
           {extractPath(request.url)}
         </td>
         <td className={`p-2 font-mono ${getStatusColor(request.status)}`}>{request.status}</td>
