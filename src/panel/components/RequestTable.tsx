@@ -79,8 +79,8 @@ function RequestRow({ request, isSelected, isExpanded, onSelect, onToggleExpand,
   return (
     <>
       <tr
-        className={`border-b border-gray-800 cursor-pointer hover:bg-[#2a2d2e] ${
-          isSelected ? 'bg-[#094771]' : ''
+        className={`border-b border-gray-800 cursor-pointer ${
+          isSelected ? 'bg-[#094771]' : 'hover:bg-[#2a2d2e]'
         }`}
         onClick={(e) => {
           if ((e.target as HTMLElement).tagName !== 'INPUT') {
