@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build
 
 on:
   push:
@@ -29,38 +29,9 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Create zip file
-        run: |
-          cd dist
-          zip -r ../network-enhance-extension.zip .
-
-      - name: Get version and date
-        id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          DATE=$(date +'%Y%m%d-%H%M%S')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "date=${DATE}" >> $GITHUB_OUTPUT
-          echo "tag=v${VERSION}-${DATE}" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: Release ${{ steps.version.outputs.tag }}
-          body: |
-            ## Network Enhance Chrome Extension
-
-            ### 安裝方式
-            1. 下載 `network-enhance-extension.zip`
-            2. 解壓縮
-            3. 開啟 `chrome://extensions/`
-            4. 開啟「開發者模式」
-            5. 點擊「載入未封裝項目」
-            6. 選擇解壓縮後的資料夾
-
-            ### Commit
-            ${{ github.sha }}
-          files: network-enhance-extension.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: network-enhance-extension
+          path: dist/
+          retention-days: 30
