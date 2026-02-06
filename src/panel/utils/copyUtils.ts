@@ -57,18 +57,42 @@ export function generatePostmanCollection(requests: NetworkRequest[]): string {
 }
 
 export function generateMarkdownTable(requests: NetworkRequest[]): string {
-  const lines = [
-    '| Method | URL | Status | Response |',
-    '|--------|-----|--------|----------|',
-  ]
+  const sections: string[] = []
 
-  requests.forEach((req) => {
-    const url = truncateUrl(req.url, 60)
-    const response = req.responseBody ? truncateResponse(req.responseBody, 100) : '-'
-    lines.push(`| ${req.method} | ${url} | ${req.status} | ${response} |`)
+  requests.forEach((req, index) => {
+    const section = [
+      `## ${index + 1}. ${req.method} ${getUrlPath(req.url)}`,
+      '',
+      `**URL:** \`${req.url}\``,
+      '',
+      `**Status:** ${req.status} ${req.statusText}`,
+      '',
+      '### cURL',
+      '```bash',
+      generateCurl(req),
+      '```',
+      '',
+      '### Response',
+      '```json',
+      formatJsonSafe(req.responseBody),
+      '```',
+      '',
+      '---',
+      '',
+    ]
+    sections.push(section.join('\n'))
   })
 
-  return lines.join('\n')
+  return sections.join('\n')
+}
+
+function formatJsonSafe(str: string | null): string {
+  if (!str) return '(empty)'
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch {
+    return str
+  }
 }
 
 export function formatHeaders(headers: Header[]): string {
