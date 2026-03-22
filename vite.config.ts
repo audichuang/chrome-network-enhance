@@ -25,16 +25,16 @@ export default defineConfig({
           mkdirSync(iconsDir, { recursive: true })
         }
         copyFileSync(
-          resolve(__dirname, 'icons/icon16.svg'),
-          resolve(__dirname, 'dist/icons/icon16.svg')
+          resolve(__dirname, 'icons/icon16.png'),
+          resolve(__dirname, 'dist/icons/icon16.png')
         )
         copyFileSync(
-          resolve(__dirname, 'icons/icon48.svg'),
-          resolve(__dirname, 'dist/icons/icon48.svg')
+          resolve(__dirname, 'icons/icon48.png'),
+          resolve(__dirname, 'dist/icons/icon48.png')
         )
         copyFileSync(
-          resolve(__dirname, 'icons/icon128.svg'),
-          resolve(__dirname, 'dist/icons/icon128.svg')
+          resolve(__dirname, 'icons/icon128.png'),
+          resolve(__dirname, 'dist/icons/icon128.png')
         )
       }
     }
