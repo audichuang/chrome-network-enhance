@@ -2,6 +2,7 @@ import { NetworkRequest } from '../../types'
 import {
   generateCurl,
   generatePostmanCollection,
+  generateMockoonEnvironment,
   generateMarkdownTable,
   formatHeaders,
   formatResponsesAsJson,
@@ -86,6 +87,12 @@ export default function ContextMenu({
             label={`Export to Postman${count > 1 ? ` (${count})` : ''}`}
             onClick={() =>
               handleAction(async () => generatePostmanCollection(selectedRequests), 'Postman collection copied!')
+            }
+          />
+          <MenuItem
+            label={`Export to Mockoon${count > 1 ? ` (${count})` : ''}`}
+            onClick={() =>
+              handleAction(async () => generateMockoonEnvironment(selectedRequests), 'Mockoon environment copied!')
             }
           />
           <MenuItem

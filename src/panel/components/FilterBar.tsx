@@ -20,7 +20,7 @@ export default function FilterBar({
   selectedCount,
 }: FilterBarProps) {
   return (
-    <div className="flex items-center gap-2 p-2 border-b border-gray-700 bg-[#252526]">
+    <div className="flex flex-wrap items-center gap-2 p-2 border-b border-gray-700 bg-[#252526]">
       <button
         onClick={onToggleRecording}
         className={`w-6 h-6 rounded-full flex items-center justify-center ${

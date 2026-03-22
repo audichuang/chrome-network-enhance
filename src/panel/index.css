@@ -13,6 +13,7 @@ body {
 #root {
   height: 100vh;
   overflow: hidden;
+  min-width: 0;
 }
 
 /* Custom scrollbar */

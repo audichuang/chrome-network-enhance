@@ -86,6 +86,87 @@ export function generateMarkdownTable(requests: NetworkRequest[]): string {
   return sections.join('\n')
 }
 
+export function generateMockoonEnvironment(requests: NetworkRequest[]): string {
+  // 將相同 path + method 的請求合併為同一 route 的多個 responses
+  const routeMap = new Map<string, { method: string; endpoint: string; responses: NetworkRequest[] }>()
+
+  requests.forEach((req) => {
+    const endpoint = getUrlPath(req.url).replace(/^\//, '') // Mockoon endpoint 不含前導斜線
+    const key = `${req.method}:${endpoint}`
+    if (!routeMap.has(key)) {
+      routeMap.set(key, { method: req.method, endpoint, responses: [] })
+    }
+    routeMap.get(key)!.responses.push(req)
+  })
+
+  const routes = Array.from(routeMap.values()).map((route) => ({
+    uuid: crypto.randomUUID(),
+    documentation: `${route.method} /${route.endpoint}`,
+    method: route.method.toLowerCase(),
+    endpoint: route.endpoint,
+    type: 'http',
+    responses: route.responses.map((req) => ({
+      uuid: crypto.randomUUID(),
+      body: req.responseBody || '',
+      latency: 0,
+      statusCode: req.status,
+      label: `${req.status} ${req.statusText}`,
+      headers: req.responseHeaders
+        .filter((h) => !['transfer-encoding', 'content-encoding', 'content-length'].includes(h.name.toLowerCase()))
+        .map((h) => ({ key: h.name, value: h.value })),
+      rules: [],
+      sendFile: false,
+      filePath: '',
+    })),
+    enabled: true,
+    randomResponse: false,
+    sequentialResponse: false,
+    alwaysFakeResponses: false,
+    callbacks: [],
+  }))
+
+  const environment = {
+    uuid: crypto.randomUUID(),
+    name: 'Exported from Network Enhance',
+    endpointPrefix: '',
+    port: 3000,
+    hostname: '0.0.0.0',
+    tlsOptions: {
+      enabled: false,
+      key: '',
+      cert: '',
+      pfx: '',
+      passphrase: '',
+    },
+    cors: {
+      enabled: true,
+      origin: '*',
+      headers: 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With',
+      credentials: true,
+      methods: 'GET,PUT,POST,DELETE,HEAD,PATCH,OPTIONS',
+    },
+    headers: [
+      { key: 'Content-Type', value: 'application/json' },
+    ],
+    proxyMode: false,
+    proxyHost: '',
+    proxyRemovePrefix: false,
+    routes,
+    data: [],
+    callbacks: [],
+    rootChildren: routes.map((r) => ({ type: 'route' as const, uuid: r.uuid })),
+    variables: [],
+    secrets: [],
+    settings: {
+      logTransaction: false,
+      enableAdminApi: false,
+      adminApiPort: 6000,
+    },
+  }
+
+  return JSON.stringify(environment, null, 2)
+}
+
 function formatJsonSafe(str: string | null): string {
   if (!str) return '(empty)'
   try {

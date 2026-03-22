@@ -23,7 +23,7 @@ export default function RequestTable({
 
   return (
     <div className="flex-1 overflow-auto">
-      <table className="w-full text-xs">
+      <table className="w-full text-xs table-fixed">
         <thead className="sticky top-0 bg-[#252526] border-b border-gray-700">
           <tr>
             <th className="w-8 p-2 text-left">
@@ -103,7 +103,7 @@ function RequestRow({ request, isSelected, isExpanded, onSelect, onToggleExpand,
           />
         </td>
         <td className={`p-2 font-mono ${getMethodColor(request.method)}`}>{request.method}</td>
-        <td className="p-2 truncate max-w-md">
+        <td className="p-2 truncate overflow-hidden">
           {extractPath(request.url)}
         </td>
         <td className={`p-2 font-mono ${getStatusColor(request.status)}`}>{request.status}</td>
