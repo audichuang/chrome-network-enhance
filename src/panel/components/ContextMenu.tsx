@@ -1,3 +1,4 @@
+import { useRef, useEffect, useState } from 'react'
 import { NetworkRequest } from '../../types'
 import {
   generateCurl,
@@ -29,6 +30,26 @@ export default function ContextMenu({
   const count = selectedRequests.length
   const single = count === 1
   const request = selectedRequests[0]
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [adjustedPos, setAdjustedPos] = useState({ left: x, top: y })
+
+  // render 後測量選單尺寸，超出 viewport 則校正位置
+  useEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    let left = x
+    let top = y
+    if (top + rect.height > vh) {
+      top = Math.max(0, y - rect.height)
+    }
+    if (left + rect.width > vw) {
+      left = Math.max(0, vw - rect.width - 4)
+    }
+    setAdjustedPos({ left, top })
+  }, [x, y])
 
   const handleAction = async (action: () => Promise<string>, successMessage: string) => {
     try {
@@ -43,13 +64,14 @@ export default function ContextMenu({
 
   const menuStyle: React.CSSProperties = {
     position: 'fixed',
-    left: x,
-    top: y,
+    left: adjustedPos.left,
+    top: adjustedPos.top,
     zIndex: 1000,
   }
 
   return (
     <div
+      ref={menuRef}
       style={menuStyle}
       className="bg-[#2d2d2d] border border-gray-600 rounded shadow-lg py-1 min-w-[200px]"
       onClick={(e) => e.stopPropagation()}
