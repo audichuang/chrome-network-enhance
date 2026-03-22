@@ -60,11 +60,11 @@ export default function RequestTable({
             className="rounded"
           />
         </div>
-        <div className="w-14 px-1.5 flex-shrink-0">Method</div>
         <div className="flex-1 px-1.5 min-w-0">Name</div>
-        <div className="w-14 px-1.5 flex-shrink-0">Status</div>
         {showDetailColumns && (
           <>
+            <div className="w-14 px-1.5 flex-shrink-0">Method</div>
+            <div className="w-14 px-1.5 flex-shrink-0">Status</div>
             <div className="w-16 px-1.5 flex-shrink-0">Size</div>
             <div className="w-16 px-1.5 flex-shrink-0">Time</div>
           </>
@@ -113,17 +113,17 @@ export default function RequestTable({
                     className="rounded"
                   />
                 </div>
-                <div className={`w-14 px-1.5 font-mono flex-shrink-0 ${getMethodColor(req.method)}`}>
-                  {req.method}
-                </div>
                 <div className="flex-1 px-1.5 truncate overflow-hidden min-w-0">
                   <HighlightText text={extractName(req.url)} highlight={searchTerm} />
                 </div>
-                <div className={`w-14 px-1.5 font-mono flex-shrink-0 ${getStatusColor(req.status)}`}>
-                  {req.status}
-                </div>
                 {showDetailColumns && (
                   <>
+                    <div className={`w-14 px-1.5 font-mono flex-shrink-0 ${getMethodColor(req.method)}`}>
+                      {req.method}
+                    </div>
+                    <div className={`w-14 px-1.5 font-mono flex-shrink-0 ${getStatusColor(req.status)}`}>
+                      {req.status}
+                    </div>
                     <div className="w-16 px-1.5 text-gray-400 flex-shrink-0">{formatBytes(req.size)}</div>
                     <div className="w-16 px-1.5 text-gray-400 flex-shrink-0">{formatTime(req.time)}</div>
                   </>
