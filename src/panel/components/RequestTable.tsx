@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { NetworkRequest } from '../../types'
-import { formatBytes, formatTime, getStatusColor, getMethodColor, extractPath } from '../utils/formatters'
+import { formatBytes, formatTime, getStatusColor, getMethodColor, extractName } from '../utils/formatters'
 import HighlightText from './HighlightText'
 
 interface RequestTableProps {
@@ -61,7 +61,7 @@ export default function RequestTable({
           />
         </div>
         <div className="w-14 px-1.5 flex-shrink-0">Method</div>
-        <div className="flex-1 px-1.5 min-w-0">URL</div>
+        <div className="flex-1 px-1.5 min-w-0">Name</div>
         <div className="w-14 px-1.5 flex-shrink-0">Status</div>
         {showDetailColumns && (
           <>
@@ -117,7 +117,7 @@ export default function RequestTable({
                   {req.method}
                 </div>
                 <div className="flex-1 px-1.5 truncate overflow-hidden min-w-0">
-                  <HighlightText text={extractPath(req.url)} highlight={searchTerm} />
+                  <HighlightText text={extractName(req.url)} highlight={searchTerm} />
                 </div>
                 <div className={`w-14 px-1.5 font-mono flex-shrink-0 ${getStatusColor(req.status)}`}>
                   {req.status}

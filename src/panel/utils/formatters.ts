@@ -62,3 +62,14 @@ export function extractPath(url: string): string {
     return url
   }
 }
+
+export function extractName(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    return segments.length > 0 ? segments[segments.length - 1] : parsed.pathname
+  } catch {
+    const parts = url.split('/')
+    return parts[parts.length - 1] || url
+  }
+}
