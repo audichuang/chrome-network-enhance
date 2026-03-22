@@ -5,6 +5,7 @@ import {
   generatePostmanCollection,
   generateMockoonEnvironment,
   generateMarkdownTable,
+  generateApiMockExport,
   formatHeaders,
   formatResponsesAsJson,
   copyToClipboard,
@@ -115,6 +116,12 @@ export default function ContextMenu({
             label={`Export to Mockoon${count > 1 ? ` (${count})` : ''}`}
             onClick={() =>
               handleAction(async () => generateMockoonEnvironment(selectedRequests), 'Mockoon environment copied!')
+            }
+          />
+          <MenuItem
+            label={`Copy for API Mock${count > 1 ? ` (${count})` : ''}`}
+            onClick={() =>
+              handleAction(async () => generateApiMockExport(selectedRequests), 'API Mock JSON copied!')
             }
           />
           <MenuItem

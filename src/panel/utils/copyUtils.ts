@@ -191,6 +191,22 @@ export function formatResponsesAsJson(requests: NetworkRequest[]): string {
   return JSON.stringify(responses, null, 2)
 }
 
+/**
+ * 產出 API Mock 匯入用的結構化 JSON
+ * 通用格式，不假設任何特定 request/response 結構
+ */
+export function generateApiMockExport(requests: NetworkRequest[]): string {
+  const items = requests.map((req) => ({
+    url: req.url,
+    method: req.method,
+    status: req.status,
+    requestBody: tryParseJson(req.requestBody),
+    responseBody: tryParseJson(req.responseBody),
+  }))
+
+  return JSON.stringify(items, null, 2)
+}
+
 function getUrlPath(url: string): string {
   try {
     return new URL(url).pathname
