@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react'
-import { NetworkRequest, FilterState } from '../types'
+import { FilterState } from '../types'
 import { useNetworkRequests } from './hooks/useNetworkRequests'
 import { useSelection } from './hooks/useSelection'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import FilterBar from './components/FilterBar'
 import RequestTable from './components/RequestTable'
 import ContextMenu from './components/ContextMenu'
@@ -18,6 +19,8 @@ function App() {
   })
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [focusedId, setFocusedId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const filteredRequests = requests.filter((req) => {
     if (filter.search && !req.url.toLowerCase().includes(filter.search.toLowerCase())) {
@@ -47,7 +50,12 @@ function App() {
     return true
   })
 
+  const filteredIds = filteredRequests.map((r) => r.id)
   const selectedRequests = filteredRequests.filter((req) => selectedIds.has(req.id))
+
+  const handleSelectAll = useCallback(() => {
+    selectAll(filteredIds)
+  }, [selectAll, filteredIds])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -65,6 +73,23 @@ function App() {
     setTimeout(() => setToast(null), 2000)
   }, [])
 
+  const handleExpandToggle = useCallback((id: string | null) => {
+    setExpandedId(id)
+  }, [])
+
+  // 鍵盤快捷鍵
+  useKeyboardShortcuts({
+    filteredIds,
+    focusedId,
+    expandedId,
+    selectedIds,
+    onFocusChange: setFocusedId,
+    onExpandToggle: handleExpandToggle,
+    onSelectAll: handleSelectAll,
+    onClearSelection: clearSelection,
+    onSelect: handleSelect,
+  })
+
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e]" onClick={closeContextMenu}>
       <FilterBar
@@ -79,9 +104,14 @@ function App() {
       <RequestTable
         requests={filteredRequests}
         selectedIds={selectedIds}
+        focusedId={focusedId}
+        expandedId={expandedId}
+        searchTerm={filter.search}
         onSelect={handleSelect}
-        onSelectAll={() => selectAll(filteredRequests.map((r) => r.id))}
+        onSelectAll={handleSelectAll}
         onContextMenu={handleContextMenu}
+        onExpandToggle={handleExpandToggle}
+        onFocusChange={setFocusedId}
       />
       {contextMenu && (
         <ContextMenu
