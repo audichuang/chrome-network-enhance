@@ -85,11 +85,11 @@ export default function ContextMenu({
           />
           <MenuItem
             label="Copy Response"
-            onClick={() => handleAction(async () => request.responseBody || '', 'Response copied!')}
+            onClick={() => handleAction(async () => formatJsonStr(request.responseBody || ''), 'Response copied!')}
           />
           <MenuItem
             label="Copy Request Body"
-            onClick={() => handleAction(async () => request.requestBody || '', 'Request body copied!')}
+            onClick={() => handleAction(async () => formatJsonStr(request.requestBody || ''), 'Request body copied!')}
           />
           <MenuItem
             label="Copy Headers"
@@ -164,4 +164,12 @@ function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
 
 function Divider() {
   return <div className="my-1 border-t border-gray-600" />
+}
+
+function formatJsonStr(str: string): string {
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch {
+    return str
+  }
 }

@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react'
-import { FilterState } from '../types'
+import { useState, useCallback, useMemo } from 'react'
+import { NetworkRequest, FilterState } from '../types'
 import { useNetworkRequests } from './hooks/useNetworkRequests'
 import { useSelection } from './hooks/useSelection'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import FilterBar from './components/FilterBar'
 import RequestTable from './components/RequestTable'
+import DetailPanel from './components/DetailPanel'
 import ContextMenu from './components/ContextMenu'
 import Toast from './components/Toast'
 
@@ -20,9 +21,9 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null)
 
-  const filteredRequests = requests.filter((req) => {
+  const filteredRequests = useMemo(() => requests.filter((req) => {
     if (filter.search && !req.url.toLowerCase().includes(filter.search.toLowerCase())) {
       return false
     }
@@ -35,11 +36,9 @@ function App() {
     if (filter.methodFilter !== 'all' && req.method !== filter.methodFilter) {
       return false
     }
-    // 資源類型過濾
     if (filter.resourceType !== 'all') {
       const resourceType = req.resourceType?.toLowerCase() || ''
       if (filter.resourceType === 'fetch') {
-        // Fetch/XHR: 只顯示 xhr, fetch, 或 JSON 類型
         if (!['xhr', 'fetch'].includes(resourceType) && !req.mimeType.includes('json')) {
           return false
         }
@@ -48,10 +47,13 @@ function App() {
       }
     }
     return true
-  })
+  }), [requests, filter])
 
-  const filteredIds = filteredRequests.map((r) => r.id)
+  const filteredIds = useMemo(() => filteredRequests.map((r) => r.id), [filteredRequests])
   const selectedRequests = filteredRequests.filter((req) => selectedIds.has(req.id))
+  const detailRequest = detailRequestId
+    ? requests.find((r) => r.id === detailRequestId) || null
+    : null
 
   const handleSelectAll = useCallback(() => {
     selectAll(filteredIds)
@@ -73,20 +75,35 @@ function App() {
     setTimeout(() => setToast(null), 2000)
   }, [])
 
-  const handleExpandToggle = useCallback((id: string | null) => {
-    setExpandedId(id)
+  const handleCloseDetail = useCallback(() => {
+    setDetailRequestId(null)
   }, [])
+
+  const handleRowClick = useCallback((id: string, allIds: string[], event: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => {
+    handleSelect(id, allIds, event)
+    setFocusedId(id)
+    // 單擊時只有非多選才開啟詳情面板
+    if (!event.shiftKey && !event.ctrlKey && !event.metaKey) {
+      setDetailRequestId(id)
+    }
+  }, [handleSelect])
 
   // 鍵盤快捷鍵
   useKeyboardShortcuts({
     filteredIds,
     focusedId,
-    expandedId,
+    expandedId: detailRequestId,
     selectedIds,
-    onFocusChange: setFocusedId,
-    onExpandToggle: handleExpandToggle,
+    onFocusChange: (id) => {
+      setFocusedId(id)
+      if (id) setDetailRequestId(id)
+    },
+    onExpandToggle: (id) => setDetailRequestId(id),
     onSelectAll: handleSelectAll,
-    onClearSelection: clearSelection,
+    onClearSelection: () => {
+      clearSelection()
+      setDetailRequestId(null)
+    },
     onSelect: handleSelect,
   })
 
@@ -95,24 +112,42 @@ function App() {
       <FilterBar
         filter={filter}
         onFilterChange={setFilter}
-        onClear={clearRequests}
+        onClear={() => {
+          clearRequests()
+          setDetailRequestId(null)
+        }}
         isRecording={isRecording}
         onToggleRecording={toggleRecording}
         requestCount={requests.length}
         selectedCount={selectedIds.size}
       />
-      <RequestTable
-        requests={filteredRequests}
-        selectedIds={selectedIds}
-        focusedId={focusedId}
-        expandedId={expandedId}
-        searchTerm={filter.search}
-        onSelect={handleSelect}
-        onSelectAll={handleSelectAll}
-        onContextMenu={handleContextMenu}
-        onExpandToggle={handleExpandToggle}
-        onFocusChange={setFocusedId}
-      />
+      <div className="flex flex-1 min-h-0 min-w-0">
+        {/* 左側請求列表 */}
+        <div className={`flex-shrink-0 overflow-hidden transition-all duration-200 ${
+          detailRequest ? 'w-[40%] min-w-[280px]' : 'w-full'
+        }`}>
+          <RequestTable
+            requests={filteredRequests}
+            selectedIds={selectedIds}
+            focusedId={focusedId}
+            searchTerm={filter.search}
+            showDetailColumns={!detailRequest}
+            onSelect={handleRowClick}
+            onSelectAll={handleSelectAll}
+            onContextMenu={handleContextMenu}
+          />
+        </div>
+        {/* 右側詳情面板 */}
+        {detailRequest && (
+          <div className="flex-1 min-w-0 min-h-0">
+            <DetailPanel
+              request={detailRequest}
+              onClose={handleCloseDetail}
+              onCopySuccess={showToast}
+            />
+          </div>
+        )}
+      </div>
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
