@@ -6,6 +6,7 @@ import HighlightText from './HighlightText'
 
 interface RequestTableProps {
   requests: NetworkRequest[]
+  allIds: string[]
   selectedIds: Set<string>
   focusedId: string | null
   searchTerm: string
@@ -19,6 +20,7 @@ const ROW_HEIGHT = 30
 
 export default function RequestTable({
   requests,
+  allIds,
   selectedIds,
   focusedId,
   searchTerm,
@@ -28,7 +30,6 @@ export default function RequestTable({
   onContextMenu,
 }: RequestTableProps) {
   const parentRef = useRef<HTMLDivElement>(null)
-  const allIds = requests.map((r) => r.id)
   const allSelected = requests.length > 0 && selectedIds.size === requests.length
 
   const virtualizer = useVirtualizer({
@@ -38,15 +39,21 @@ export default function RequestTable({
     overscan: 15,
   })
 
+  // 用於在滾動效果中獲取最新的 requests 而不觸發 scroll effect
+  const requestsRef = useRef(requests)
+  useEffect(() => {
+    requestsRef.current = requests
+  }, [requests])
+
   // 當 focusedId 變化時，滾動到焦點列
   useEffect(() => {
     if (focusedId) {
-      const index = requests.findIndex((r) => r.id === focusedId)
+      const index = requestsRef.current.findIndex((r) => r.id === focusedId)
       if (index !== -1) {
         virtualizer.scrollToIndex(index, { align: 'auto' })
       }
     }
-  }, [focusedId, requests, virtualizer])
+  }, [focusedId, virtualizer])
 
   return (
     <div className="flex flex-col h-full min-w-0">
@@ -105,7 +112,7 @@ export default function RequestTable({
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => {}}
+                    readOnly
                     onClick={(e) => {
                       e.stopPropagation()
                       onSelect(req.id, allIds, { shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey })

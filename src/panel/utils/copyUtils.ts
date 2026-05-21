@@ -1,4 +1,5 @@
 import { NetworkRequest, Header } from '../../types'
+import { formatJson } from './formatters'
 
 export function generateCurl(request: NetworkRequest): string {
   const parts = [`curl '${request.url}'`]
@@ -24,33 +25,54 @@ export function generatePostmanCollection(requests: NetworkRequest[]): string {
       name: 'Exported from Network Enhance',
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
     },
-    item: requests.map((req) => ({
-      name: getUrlPath(req.url),
-      request: {
-        method: req.method,
-        header: req.requestHeaders
-          .filter((h) => !['host', 'content-length'].includes(h.name.toLowerCase()))
-          .map((h) => ({ key: h.name, value: h.value })),
-        url: {
-          raw: req.url,
-          protocol: new URL(req.url).protocol.replace(':', ''),
-          host: new URL(req.url).hostname.split('.'),
-          path: new URL(req.url).pathname.split('/').filter(Boolean),
-          query: Array.from(new URL(req.url).searchParams.entries()).map(([key, value]) => ({
-            key,
-            value,
-          })),
+    item: requests.map((req) => {
+      let protocol = 'http'
+      let host: string[] = []
+      let path: string[] = []
+      let query: { key: string; value: string }[] = []
+
+      try {
+        const parsedUrl = new URL(req.url)
+        protocol = parsedUrl.protocol.replace(':', '')
+        host = parsedUrl.hostname.split('.')
+        path = parsedUrl.pathname.split('/').filter(Boolean)
+        query = Array.from(parsedUrl.searchParams.entries()).map(([key, value]) => ({
+          key,
+          value,
+        }))
+      } catch {
+        // 安全退回 (fallback)：處理非標準或不合規的 URL
+        protocol = 'http'
+        host = ['unknown']
+        path = [req.url]
+        query = []
+      }
+
+      return {
+        name: getUrlPath(req.url),
+        request: {
+          method: req.method,
+          header: req.requestHeaders
+            .filter((h) => !['host', 'content-length'].includes(h.name.toLowerCase()))
+            .map((h) => ({ key: h.name, value: h.value })),
+          url: {
+            raw: req.url,
+            protocol,
+            host,
+            path,
+            query,
+          },
+          body: req.requestBody
+            ? {
+                mode: 'raw',
+                raw: req.requestBody,
+                options: { raw: { language: 'json' } },
+              }
+            : undefined,
         },
-        body: req.requestBody
-          ? {
-              mode: 'raw',
-              raw: req.requestBody,
-              options: { raw: { language: 'json' } },
-            }
-          : undefined,
-      },
-      response: [],
-    })),
+        response: [],
+      }
+    }),
   }
 
   return JSON.stringify(collection, null, 2)
@@ -74,7 +96,7 @@ export function generateMarkdownTable(requests: NetworkRequest[]): string {
       '',
       '### Response',
       '```json',
-      formatJsonSafe(req.responseBody),
+      req.responseBody ? formatJson(req.responseBody) : '(empty)',
       '```',
       '',
       '---',
@@ -167,15 +189,6 @@ export function generateMockoonEnvironment(requests: NetworkRequest[]): string {
   return JSON.stringify(environment, null, 2)
 }
 
-function formatJsonSafe(str: string | null): string {
-  if (!str) return '(empty)'
-  try {
-    return JSON.stringify(JSON.parse(str), null, 2)
-  } catch {
-    return str
-  }
-}
-
 export function formatHeaders(headers: Header[]): string {
   return headers.map((h) => `${h.name}: ${h.value}`).join('\n')
 }
@@ -193,7 +206,7 @@ export function formatResponsesAsJson(requests: NetworkRequest[]): string {
 
 /**
  * 產出 API Mock 匯入用的結構化 JSON
- * 通用格式，不假設任何特定 request/response 結構
+ * 通用格式，不假設 any 其它 request/response 結構
  */
 export function generateApiMockExport(requests: NetworkRequest[]): string {
   const items = requests.map((req) => ({

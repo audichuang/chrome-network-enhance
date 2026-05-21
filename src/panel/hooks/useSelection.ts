@@ -1,16 +1,17 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 
 export function useSelection() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
+  const lastSelectedIdRef = useRef<string | null>(null)
 
   const handleSelect = useCallback(
     (id: string, allIds: string[], event: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => {
+      const anchor = lastSelectedIdRef.current
       setSelectedIds((prev) => {
         const next = new Set(prev)
 
-        if (event.shiftKey && lastSelectedId) {
-          const startIndex = allIds.indexOf(lastSelectedId)
+        if (event.shiftKey && anchor) {
+          const startIndex = allIds.indexOf(anchor)
           const endIndex = allIds.indexOf(id)
           if (startIndex !== -1 && endIndex !== -1) {
             const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
@@ -31,14 +32,14 @@ export function useSelection() {
 
         return next
       })
-      setLastSelectedId(id)
+      lastSelectedIdRef.current = id
     },
-    [lastSelectedId]
+    []
   )
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set())
-    setLastSelectedId(null)
+    lastSelectedIdRef.current = null
   }, [])
 
   const selectAll = useCallback((ids: string[]) => {
@@ -50,5 +51,5 @@ export function useSelection() {
     })
   }, [])
 
-  return { selectedIds, lastSelectedId, handleSelect, clearSelection, selectAll }
+  return { selectedIds, handleSelect, clearSelection, selectAll }
 }

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { NetworkRequest } from '../../types'
+import { formatJson } from '../utils/formatters'
 import {
   generateCurl,
   generatePostmanCollection,
@@ -15,6 +16,7 @@ interface ContextMenuProps {
   x: number
   y: number
   selectedRequests: NetworkRequest[]
+  fetchResponseBody: (id: string) => Promise<string | null>
   onClose: () => void
   onCopySuccess: (message: string) => void
   onClearSelection: () => void
@@ -24,13 +26,13 @@ export default function ContextMenu({
   x,
   y,
   selectedRequests,
+  fetchResponseBody,
   onClose,
   onCopySuccess,
   onClearSelection,
 }: ContextMenuProps) {
   const count = selectedRequests.length
   const single = count === 1
-  const request = selectedRequests[0]
   const menuRef = useRef<HTMLDivElement>(null)
   const [adjustedPos, setAdjustedPos] = useState({ left: x, top: y })
 
@@ -52,9 +54,29 @@ export default function ContextMenu({
     setAdjustedPos({ left, top })
   }, [x, y])
 
-  const handleAction = async (action: () => Promise<string>, successMessage: string) => {
+  // 獲取含有完整 response body 的 NetworkRequest 列表
+  const getRequestsWithBodies = async (reqs: NetworkRequest[]): Promise<NetworkRequest[]> => {
+    return Promise.all(
+      reqs.map(async (req) => {
+        if (req.responseBody !== null) {
+          return req
+        }
+        const body = await fetchResponseBody(req.id)
+        return { ...req, responseBody: body }
+      })
+    )
+  }
+
+  const handleAction = async (
+    action: (reqs: NetworkRequest[]) => string | Promise<string>,
+    successMessage: string,
+    requiresBody?: boolean
+  ) => {
     try {
-      const text = await action()
+      const filledRequests = requiresBody
+        ? await getRequestsWithBodies(selectedRequests)
+        : selectedRequests
+      const text = await action(filledRequests)
       await copyToClipboard(text)
       onCopySuccess(successMessage)
     } catch (err) {
@@ -81,21 +103,21 @@ export default function ContextMenu({
         <>
           <MenuItem
             label="Copy as cURL"
-            onClick={() => handleAction(async () => generateCurl(request), 'cURL copied!')}
+            onClick={() => handleAction(async (reqs) => generateCurl(reqs[0]), 'cURL copied!')}
           />
           <MenuItem
             label="Copy Response"
-            onClick={() => handleAction(async () => formatJsonStr(request.responseBody || ''), 'Response copied!')}
+            onClick={() => handleAction(async (reqs) => formatJson(reqs[0].responseBody || ''), 'Response copied!', true)}
           />
           <MenuItem
             label="Copy Request Body"
-            onClick={() => handleAction(async () => formatJsonStr(request.requestBody || ''), 'Request body copied!')}
+            onClick={() => handleAction(async (reqs) => formatJson(reqs[0].requestBody || ''), 'Request body copied!')}
           />
           <MenuItem
             label="Copy Headers"
             onClick={() =>
               handleAction(
-                async () => formatHeaders(request.requestHeaders) + '\n\n' + formatHeaders(request.responseHeaders),
+                async (reqs) => formatHeaders(reqs[0].requestHeaders) + '\n\n' + formatHeaders(reqs[0].responseHeaders),
                 'Headers copied!'
               )
             }
@@ -109,30 +131,30 @@ export default function ContextMenu({
           <MenuItem
             label={`Export to Postman${count > 1 ? ` (${count})` : ''}`}
             onClick={() =>
-              handleAction(async () => generatePostmanCollection(selectedRequests), 'Postman collection copied!')
+              handleAction(async (reqs) => generatePostmanCollection(reqs), 'Postman collection copied!')
             }
           />
           <MenuItem
             label={`Export to Mockoon${count > 1 ? ` (${count})` : ''}`}
             onClick={() =>
-              handleAction(async () => generateMockoonEnvironment(selectedRequests), 'Mockoon environment copied!')
+              handleAction(async (reqs) => generateMockoonEnvironment(reqs), 'Mockoon environment copied!', true)
             }
           />
           <MenuItem
             label={`Copy for API Mock${count > 1 ? ` (${count})` : ''}`}
             onClick={() =>
-              handleAction(async () => generateApiMockExport(selectedRequests), 'API Mock JSON copied!')
+              handleAction(async (reqs) => generateApiMockExport(reqs), 'API Mock JSON copied!', true)
             }
           />
           <MenuItem
             label={`Copy as Markdown Table${count > 1 ? ` (${count})` : ''}`}
-            onClick={() => handleAction(async () => generateMarkdownTable(selectedRequests), 'Markdown copied!')}
+            onClick={() => handleAction(async (reqs) => generateMarkdownTable(reqs), 'Markdown copied!', true)}
           />
           {count > 1 && (
             <MenuItem
               label={`Copy All Responses (${count})`}
               onClick={() =>
-                handleAction(async () => formatResponsesAsJson(selectedRequests), `${count} responses copied!`)
+                handleAction(async (reqs) => formatResponsesAsJson(reqs), `${count} responses copied!`, true)
               }
             />
           )}
@@ -164,12 +186,4 @@ function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
 
 function Divider() {
   return <div className="my-1 border-t border-gray-600" />
-}
-
-function formatJsonStr(str: string): string {
-  try {
-    return JSON.stringify(JSON.parse(str), null, 2)
-  } catch {
-    return str
-  }
 }

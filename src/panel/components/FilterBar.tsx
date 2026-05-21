@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { FilterState, ResourceType } from '../../types'
 
 interface FilterBarProps {
@@ -19,6 +20,24 @@ export default function FilterBar({
   requestCount,
   selectedCount,
 }: FilterBarProps) {
+  const [localSearch, setLocalSearch] = useState(filter.search)
+
+  // 當外部 filter.search 改變時（例如點擊清除），同步更新 localSearch
+  useEffect(() => {
+    setLocalSearch(filter.search)
+  }, [filter.search])
+
+  // 防抖處理：當 localSearch 改變時，延遲 250ms 更新外部 filter 狀態
+  useEffect(() => {
+    if (localSearch === filter.search) return
+
+    const timer = setTimeout(() => {
+      onFilterChange({ ...filter, search: localSearch })
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [localSearch, filter, onFilterChange])
+
   return (
     <div className="flex flex-wrap items-center gap-2 p-2 border-b border-gray-700 bg-[#252526]">
       <button
@@ -61,8 +80,8 @@ export default function FilterBar({
       <input
         type="text"
         placeholder="Filter URL..."
-        value={filter.search}
-        onChange={(e) => onFilterChange({ ...filter, search: e.target.value })}
+        value={localSearch}
+        onChange={(e) => setLocalSearch(e.target.value)}
         className="flex-1 px-2 py-1 text-xs bg-[#3c3c3c] border border-gray-600 rounded focus:outline-none focus:border-blue-500"
       />
 

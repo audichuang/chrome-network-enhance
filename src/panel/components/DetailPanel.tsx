@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { NetworkRequest } from '../../types'
 import { formatJson } from '../utils/formatters'
 import { copyToClipboard } from '../utils/copyUtils'
@@ -11,19 +11,19 @@ interface DetailPanelProps {
 
 type TabType = 'headers' | 'payload' | 'preview' | 'response'
 
+const TABS: { key: TabType; label: string }[] = [
+  { key: 'headers', label: 'Headers' },
+  { key: 'payload', label: 'Payload' },
+  { key: 'preview', label: 'Preview' },
+  { key: 'response', label: 'Response' },
+]
+
 export default function DetailPanel({ request, onClose, onCopySuccess }: DetailPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('preview')
 
-  const tabs: { key: TabType; label: string }[] = [
-    { key: 'headers', label: 'Headers' },
-    { key: 'payload', label: 'Payload' },
-    { key: 'preview', label: 'Preview' },
-    { key: 'response', label: 'Response' },
-  ]
-
   const handleCopy = async (content: string, label: string) => {
     try {
-      await copyToClipboard(formatJsonSafe(content))
+      await copyToClipboard(formatJson(content))
       onCopySuccess(`${label} copied!`)
     } catch (err) {
       console.error('Copy failed:', err)
@@ -42,7 +42,7 @@ export default function DetailPanel({ request, onClose, onCopySuccess }: DetailP
           ✕
         </button>
         <div className="flex flex-1 overflow-x-auto">
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.key}
               className={`px-4 py-2 text-xs whitespace-nowrap transition-colors border-b-2 ${
@@ -144,11 +144,12 @@ function JsonTab({
   emptyMessage: string
   onCopy: () => void
 }) {
+  // 使用 useMemo 快取格式化 JSON 操作，避免大 JSON 阻塞主線程
+  const formatted = useMemo(() => formatJson(content), [content])
+
   if (!content) {
     return <EmptyState message={emptyMessage} />
   }
-
-  const formatted = formatJsonSafe(content)
 
   return (
     <div className="relative">
@@ -309,6 +310,7 @@ function Section({ title, defaultOpen = false, children }: { title: string; defa
   )
 }
 
+/* ─── InfoRow and EmptyState ─── */
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex py-0.5 gap-2 leading-5">
@@ -322,12 +324,4 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex items-center justify-center h-32 text-gray-500 text-xs">{message}</div>
   )
-}
-
-function formatJsonSafe(str: string): string {
-  try {
-    return JSON.stringify(JSON.parse(str), null, 2)
-  } catch {
-    return str
-  }
 }

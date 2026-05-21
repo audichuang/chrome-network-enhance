@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { NetworkRequest, FilterState } from '../types'
 import { useNetworkRequests } from './hooks/useNetworkRequests'
 import { useSelection } from './hooks/useSelection'
@@ -10,7 +10,7 @@ import ContextMenu from './components/ContextMenu'
 import Toast from './components/Toast'
 
 function App() {
-  const { requests, clearRequests, isRecording, toggleRecording } = useNetworkRequests()
+  const { requests, clearRequests, isRecording, toggleRecording, fetchResponseBody } = useNetworkRequests()
   const { selectedIds, handleSelect, clearSelection, selectAll } = useSelection()
   const [filter, setFilter] = useState<FilterState>({
     search: '',
@@ -50,10 +50,26 @@ function App() {
   }), [requests, filter])
 
   const filteredIds = useMemo(() => filteredRequests.map((r) => r.id), [filteredRequests])
-  const selectedRequests = filteredRequests.filter((req) => selectedIds.has(req.id))
-  const detailRequest = detailRequestId
-    ? requests.find((r) => r.id === detailRequestId) || null
-    : null
+
+  const selectedRequests = useMemo(() =>
+    filteredRequests.filter((req) => selectedIds.has(req.id)),
+    [filteredRequests, selectedIds]
+  )
+
+  const detailRequest = useMemo(() =>
+    detailRequestId ? requests.find((r) => r.id === detailRequestId) || null : null,
+    [requests, detailRequestId]
+  )
+
+  // 懶載入副作用：當選中的 detailRequestId 變更且該請求尚未載入 responseBody 時，發送 getContent 請求
+  useEffect(() => {
+    if (detailRequestId) {
+      const req = requests.find((r) => r.id === detailRequestId)
+      if (req && req.responseBody === null) {
+        fetchResponseBody(detailRequestId)
+      }
+    }
+  }, [detailRequestId, requests, fetchResponseBody])
 
   const handleSelectAll = useCallback(() => {
     selectAll(filteredIds)
@@ -88,22 +104,31 @@ function App() {
     }
   }, [handleSelect])
 
+  // 鍵盤快捷鍵所用 callback 進行穩定化
+  const handleFocusChange = useCallback((id: string | null) => {
+    setFocusedId(id)
+    if (id) setDetailRequestId(id)
+  }, [])
+
+  const handleExpandToggle = useCallback((id: string | null) => {
+    setDetailRequestId(id)
+  }, [])
+
+  const handleClearSelection = useCallback(() => {
+    clearSelection()
+    setDetailRequestId(null)
+  }, [clearSelection])
+
   // 鍵盤快捷鍵
   useKeyboardShortcuts({
     filteredIds,
     focusedId,
     expandedId: detailRequestId,
     selectedIds,
-    onFocusChange: (id) => {
-      setFocusedId(id)
-      if (id) setDetailRequestId(id)
-    },
-    onExpandToggle: (id) => setDetailRequestId(id),
+    onFocusChange: handleFocusChange,
+    onExpandToggle: handleExpandToggle,
     onSelectAll: handleSelectAll,
-    onClearSelection: () => {
-      clearSelection()
-      setDetailRequestId(null)
-    },
+    onClearSelection: handleClearSelection,
     onSelect: handleSelect,
   })
 
@@ -128,6 +153,7 @@ function App() {
         }`}>
           <RequestTable
             requests={filteredRequests}
+            allIds={filteredIds}
             selectedIds={selectedIds}
             focusedId={focusedId}
             searchTerm={filter.search}
@@ -153,6 +179,7 @@ function App() {
           x={contextMenu.x}
           y={contextMenu.y}
           selectedRequests={selectedRequests}
+          fetchResponseBody={fetchResponseBody}
           onClose={closeContextMenu}
           onCopySuccess={showToast}
           onClearSelection={clearSelection}
