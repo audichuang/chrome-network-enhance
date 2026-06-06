@@ -1,0 +1,60 @@
+name: CI
+
+# 嚴格的提交檢查：所有針對 main 的 Pull Request、以及 push 到 main 都會跑。
+# 任一步驟失敗即標記紅燈，搭配 GitHub 分支保護規則可阻擋未通過檢查的 PR 合併。
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+# 同一分支若有新的 push，取消仍在跑的舊流程，節省 runner 資源。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 最小權限原則：CI 只需讀取程式碼。
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Type-check, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 讀取 package.json 的 packageManager 欄位安裝對應 pnpm 版本，確保與本地一致。
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      # --frozen-lockfile：lockfile 與 package.json 不一致就失敗，
+      # 強制貢獻者改動相依時一併更新 pnpm-lock.yaml。
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm run typecheck
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm exec vite build
+
+      # 驗證建置產物確實存在，避免 build 靜默產出空目錄。
+      - name: Verify build artifacts
+        run: |
+          test -f dist/manifest.json || { echo "::error::dist/manifest.json missing"; exit 1; }
+          test -f dist/assets/panel.js || { echo "::error::dist/assets/panel.js missing"; exit 1; }
+          echo "Build artifacts verified."
