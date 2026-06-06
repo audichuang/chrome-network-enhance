@@ -1,31 +1,24 @@
+import { splitHighlight } from '../utils/highlight'
+
 interface HighlightTextProps {
   text: string
   highlight: string
 }
 
 export default function HighlightText({ text, highlight }: HighlightTextProps) {
-  if (!highlight.trim()) {
-    return <>{text}</>
-  }
-
-  const regex = new RegExp(`(${escapeRegex(highlight)})`, 'gi')
-  const parts = text.split(regex)
+  const parts = splitHighlight(text, highlight)
 
   return (
     <>
       {parts.map((part, i) =>
-        regex.test(part) ? (
-          <mark key={i} className="bg-yellow-500/40 text-inherit rounded-sm px-0.5">
-            {part}
+        part.match ? (
+          <mark key={i} className="bg-yellow-400/70 text-black rounded-sm px-0.5">
+            {part.text}
           </mark>
         ) : (
-          <span key={i}>{part}</span>
+          <span key={i}>{part.text}</span>
         )
       )}
     </>
   )
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

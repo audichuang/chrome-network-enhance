@@ -6,7 +6,7 @@ import { copyToClipboard } from '../utils/copyUtils'
 interface DetailPanelProps {
   request: NetworkRequest
   onClose: () => void
-  onCopySuccess: (message: string) => void
+  onToast: (message: string, type?: 'success' | 'error') => void
 }
 
 type TabType = 'headers' | 'payload' | 'preview' | 'response'
@@ -18,15 +18,16 @@ const TABS: { key: TabType; label: string }[] = [
   { key: 'response', label: 'Response' },
 ]
 
-export default function DetailPanel({ request, onClose, onCopySuccess }: DetailPanelProps) {
+export default function DetailPanel({ request, onClose, onToast }: DetailPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('preview')
 
   const handleCopy = async (content: string, label: string) => {
     try {
       await copyToClipboard(formatJson(content))
-      onCopySuccess(`${label} copied!`)
+      onToast(`${label} copied!`, 'success')
     } catch (err) {
       console.error('Copy failed:', err)
+      onToast('Copy failed — check clipboard permission', 'error')
     }
   }
 
@@ -74,6 +75,7 @@ export default function DetailPanel({ request, onClose, onCopySuccess }: DetailP
             content={request.responseBody}
             emptyMessage="No response body"
             onCopy={() => handleCopy(request.responseBody || '', 'Response')}
+            loadable
           />
         )}
       </div>
@@ -112,18 +114,29 @@ function HeadersTab({ request }: { request: NetworkRequest }) {
 
 /* ─── Preview Tab (collapsible JSON tree) ─── */
 function PreviewTab({ request }: { request: NetworkRequest }) {
-  if (!request.responseBody) {
+  // useMemo 必須在任何 early return 之前（Rules of Hooks）；只在 responseBody 變更時重 parse。
+  const parsed = useMemo<
+    | { state: 'loading' }
+    | { state: 'empty' }
+    | { state: 'raw' }
+    | { state: 'ok'; data: unknown }
+  >(() => {
+    if (request.responseBody === null) return { state: 'loading' }
+    if (request.responseBody === '') return { state: 'empty' }
+    try {
+      return { state: 'ok', data: JSON.parse(request.responseBody) }
+    } catch {
+      return { state: 'raw' }
+    }
+  }, [request.responseBody])
+
+  if (parsed.state === 'loading') {
+    return <LoadingState message="Loading response…" />
+  }
+  if (parsed.state === 'empty') {
     return <EmptyState message="No response data" />
   }
-
-  try {
-    const parsed = JSON.parse(request.responseBody)
-    return (
-      <div className="p-3 text-xs font-mono">
-        <JsonTree data={parsed} level={0} />
-      </div>
-    )
-  } catch {
+  if (parsed.state === 'raw') {
     return (
       <div className="p-3">
         <pre className="text-xs font-mono whitespace-pre-wrap break-all text-gray-300">
@@ -132,6 +145,11 @@ function PreviewTab({ request }: { request: NetworkRequest }) {
       </div>
     )
   }
+  return (
+    <div className="p-3 text-xs font-mono">
+      <JsonTree data={parsed.data} level={0} />
+    </div>
+  )
 }
 
 /* ─── JSON Tab (formatted text + copy) ─── */
@@ -139,14 +157,20 @@ function JsonTab({
   content,
   emptyMessage,
   onCopy,
+  loadable,
 }: {
   content: string | null
   emptyMessage: string
   onCopy: () => void
+  loadable?: boolean
 }) {
   // 使用 useMemo 快取格式化 JSON 操作，避免大 JSON 阻塞主線程
   const formatted = useMemo(() => formatJson(content), [content])
 
+  // 懶載入內容（response body）尚未載入時 content 為 null → 顯示 loading 而非假空狀態
+  if (content === null && loadable) {
+    return <LoadingState message="Loading response…" />
+  }
   if (!content) {
     return <EmptyState message={emptyMessage} />
   }
@@ -168,16 +192,20 @@ function JsonTab({
 }
 
 /* ─── Collapsible JSON Tree ─── */
+const BREADTH_LIMIT = 100
+
 function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyName?: string }) {
   const [collapsed, setCollapsed] = useState(level > 1)
+  // 廣度截斷：大陣列/大物件只先渲染前 N 筆，避免一次掛載海量 DOM 造成凍結
+  const [showAll, setShowAll] = useState(false)
   const indent = level * 16
 
   if (data === null) {
     return (
       <div style={{ paddingLeft: indent }}>
         {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-        {keyName !== undefined && <span className="text-gray-500">: </span>}
-        <span className="text-gray-500">null</span>
+        {keyName !== undefined && <span className="text-gray-400">: </span>}
+        <span className="text-gray-400">null</span>
       </div>
     )
   }
@@ -186,7 +214,7 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
     return (
       <div style={{ paddingLeft: indent }}>
         {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-        {keyName !== undefined && <span className="text-gray-500">: </span>}
+        {keyName !== undefined && <span className="text-gray-400">: </span>}
         <span className="text-blue-400">{String(data)}</span>
       </div>
     )
@@ -196,7 +224,7 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
     return (
       <div style={{ paddingLeft: indent }}>
         {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-        {keyName !== undefined && <span className="text-gray-500">: </span>}
+        {keyName !== undefined && <span className="text-gray-400">: </span>}
         <span className="text-green-400">{data}</span>
       </div>
     )
@@ -206,7 +234,7 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
     return (
       <div style={{ paddingLeft: indent }}>
         {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-        {keyName !== undefined && <span className="text-gray-500">: </span>}
+        {keyName !== undefined && <span className="text-gray-400">: </span>}
         <span className="text-orange-300">"{data}"</span>
       </div>
     )
@@ -217,12 +245,13 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
       return (
         <div style={{ paddingLeft: indent }}>
           {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-          {keyName !== undefined && <span className="text-gray-500">: </span>}
-          <span className="text-gray-500">[]</span>
+          {keyName !== undefined && <span className="text-gray-400">: </span>}
+          <span className="text-gray-400">[]</span>
         </div>
       )
     }
 
+    const shown = showAll ? data : data.slice(0, BREADTH_LIMIT)
     return (
       <div style={{ paddingLeft: indent }}>
         <span
@@ -231,16 +260,25 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
         >
           <span className="w-3 inline-block text-[10px]">{collapsed ? '▶' : '▼'}</span>
           {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-          {keyName !== undefined && <span className="text-gray-500">: </span>}
+          {keyName !== undefined && <span className="text-gray-400">: </span>}
           {collapsed && (
-            <span className="text-gray-500 ml-1">Array({data.length})</span>
+            <span className="text-gray-400 ml-1">Array({data.length})</span>
           )}
         </span>
         {!collapsed && (
           <div>
-            {data.map((item, i) => (
+            {shown.map((item, i) => (
               <JsonTree key={i} data={item} level={level + 1} keyName={String(i)} />
             ))}
+            {data.length > BREADTH_LIMIT && !showAll && (
+              <button
+                style={{ paddingLeft: (level + 1) * 16 }}
+                className="block text-blue-400 hover:text-blue-300 text-xs py-0.5"
+                onClick={() => setShowAll(true)}
+              >
+                … 顯示其餘 {data.length - BREADTH_LIMIT} 筆
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -253,12 +291,13 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
       return (
         <div style={{ paddingLeft: indent }}>
           {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-          {keyName !== undefined && <span className="text-gray-500">: </span>}
-          <span className="text-gray-500">{'{}'}</span>
+          {keyName !== undefined && <span className="text-gray-400">: </span>}
+          <span className="text-gray-400">{'{}'}</span>
         </div>
       )
     }
 
+    const shownEntries = showAll ? entries : entries.slice(0, BREADTH_LIMIT)
     return (
       <div style={{ paddingLeft: indent }}>
         <span
@@ -267,16 +306,25 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
         >
           <span className="w-3 inline-block text-[10px]">{collapsed ? '▶' : '▼'}</span>
           {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-          {keyName !== undefined && <span className="text-gray-500">: </span>}
+          {keyName !== undefined && <span className="text-gray-400">: </span>}
           {collapsed && (
-            <span className="text-gray-500 ml-1">{'{…}'}</span>
+            <span className="text-gray-400 ml-1">{'{…}'}</span>
           )}
         </span>
         {!collapsed && (
           <div>
-            {entries.map(([k, v]) => (
+            {shownEntries.map(([k, v]) => (
               <JsonTree key={k} data={v} level={level + 1} keyName={k} />
             ))}
+            {entries.length > BREADTH_LIMIT && !showAll && (
+              <button
+                style={{ paddingLeft: (level + 1) * 16 }}
+                className="block text-blue-400 hover:text-blue-300 text-xs py-0.5"
+                onClick={() => setShowAll(true)}
+              >
+                … 顯示其餘 {entries.length - BREADTH_LIMIT} 個鍵
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -286,7 +334,7 @@ function JsonTree({ data, level, keyName }: { data: unknown; level: number; keyN
   return (
     <div style={{ paddingLeft: indent }}>
       {keyName !== undefined && <span className="text-purple-400">{keyName}</span>}
-      {keyName !== undefined && <span className="text-gray-500">: </span>}
+      {keyName !== undefined && <span className="text-gray-400">: </span>}
       <span className="text-gray-300">{String(data)}</span>
     </div>
   )
@@ -310,11 +358,11 @@ function Section({ title, defaultOpen = false, children }: { title: string; defa
   )
 }
 
-/* ─── InfoRow and EmptyState ─── */
+/* ─── InfoRow, EmptyState and LoadingState ─── */
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex py-0.5 gap-2 leading-5">
-      <span className="text-gray-500 flex-shrink-0">{label}:</span>
+      <span className="text-gray-400 flex-shrink-0">{label}:</span>
       <span className="text-gray-300 break-all min-w-0">{value}</span>
     </div>
   )
@@ -322,6 +370,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex items-center justify-center h-32 text-gray-500 text-xs">{message}</div>
+    <div className="flex items-center justify-center h-32 text-gray-400 text-xs">{message}</div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="flex items-center justify-center h-32 text-gray-400 text-xs gap-2">
+      <span className="inline-block w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+      {message}
+    </div>
   )
 }

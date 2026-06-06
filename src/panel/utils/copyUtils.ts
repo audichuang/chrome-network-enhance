@@ -1,19 +1,28 @@
 import { NetworkRequest, Header } from '../../types'
 import { formatJson } from './formatters'
 
+/**
+ * 以 POSIX shell 單引號安全包裹字串。
+ * 單引號字串內反斜線無逃逸作用，因此遇到 ' 要先關閉引號、插入逃逸的 '\''、再重啟引號。
+ * 例：O'Brien → 'O'\''Brien'
+ */
+function shQuote(s: string): string {
+  return "'" + s.replace(/'/g, "'\\''") + "'"
+}
+
 export function generateCurl(request: NetworkRequest): string {
-  const parts = [`curl '${request.url}'`]
+  const parts = [`curl ${shQuote(request.url)}`]
 
   parts.push(`-X ${request.method}`)
 
   request.requestHeaders.forEach((header) => {
     if (header.name.toLowerCase() !== 'content-length') {
-      parts.push(`-H '${header.name}: ${header.value.replace(/'/g, "\\'")}'`)
+      parts.push(`-H ${shQuote(`${header.name}: ${header.value}`)}`)
     }
   })
 
   if (request.requestBody) {
-    parts.push(`--data-raw '${request.requestBody.replace(/'/g, "\\'")}'`)
+    parts.push(`--data-raw ${shQuote(request.requestBody)}`)
   }
 
   return parts.join(' \\\n  ')
@@ -270,7 +279,12 @@ export async function copyToClipboard(text: string): Promise<void> {
   textArea.select()
 
   try {
-    document.execCommand('copy')
+    // execCommand 失敗時常回傳 false 而非拋例外（如失焦情境），
+    // 必須檢查回傳值，否則「假成功」會誤顯示成功提示。
+    const ok = document.execCommand('copy')
+    if (!ok) {
+      throw new Error('execCommand("copy") returned false')
+    }
   } catch (e) {
     console.error('Copy failed:', e)
     throw e

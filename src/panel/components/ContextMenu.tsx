@@ -18,7 +18,7 @@ interface ContextMenuProps {
   selectedRequests: NetworkRequest[]
   fetchResponseBody: (id: string) => Promise<string | null>
   onClose: () => void
-  onCopySuccess: (message: string) => void
+  onToast: (message: string, type?: 'success' | 'error') => void
   onClearSelection: () => void
 }
 
@@ -28,7 +28,7 @@ export default function ContextMenu({
   selectedRequests,
   fetchResponseBody,
   onClose,
-  onCopySuccess,
+  onToast,
   onClearSelection,
 }: ContextMenuProps) {
   const count = selectedRequests.length
@@ -78,9 +78,10 @@ export default function ContextMenu({
         : selectedRequests
       const text = await action(filledRequests)
       await copyToClipboard(text)
-      onCopySuccess(successMessage)
+      onToast(successMessage, 'success')
     } catch (err) {
       console.error('Copy failed:', err)
+      onToast('Copy failed — check clipboard permission', 'error')
     }
     onClose()
   }

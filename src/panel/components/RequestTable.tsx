@@ -12,6 +12,7 @@ interface RequestTableProps {
   searchTerm: string
   showDetailColumns: boolean
   onSelect: (id: string, allIds: string[], event: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => void
+  onContextSelect: (id: string, allIds: string[]) => void
   onSelectAll: () => void
   onContextMenu: (e: React.MouseEvent) => void
 }
@@ -26,6 +27,7 @@ export default function RequestTable({
   searchTerm,
   showDetailColumns,
   onSelect,
+  onContextSelect,
   onSelectAll,
   onContextMenu,
 }: RequestTableProps) {
@@ -99,14 +101,21 @@ export default function RequestTable({
                 className={[
                   'flex items-center text-xs cursor-pointer border-b border-gray-800/50 transition-colors',
                   isSelected ? 'bg-[#094771]' : 'hover:bg-[#2a2d2e]',
-                  isFocused ? 'ring-1 ring-inset ring-blue-400/60' : '',
+                  isFocused ? 'outline outline-1 outline-offset-[-1px] outline-sky-300' : '',
                 ].join(' ')}
                 onClick={(e) => {
                   if ((e.target as HTMLElement).tagName !== 'INPUT') {
                     onSelect(req.id, allIds, e)
                   }
                 }}
-                onContextMenu={onContextMenu}
+                onContextMenu={(e) => {
+                  // 右擊未選取的列時先單選它，避免對「別的請求」執行批次操作；
+                  // 若該列已在選取集合中則保持多選不變。
+                  if (!selectedIds.has(req.id)) {
+                    onContextSelect(req.id, allIds)
+                  }
+                  onContextMenu(e)
+                }}
               >
                 <div className="w-7 px-1.5 flex-shrink-0">
                   <input
@@ -120,7 +129,7 @@ export default function RequestTable({
                     className="rounded"
                   />
                 </div>
-                <div className="flex-1 px-1.5 truncate overflow-hidden min-w-0">
+                <div className="flex-1 px-1.5 truncate overflow-hidden min-w-0" title={req.url}>
                   <HighlightText text={extractName(req.url)} highlight={searchTerm} />
                 </div>
                 {showDetailColumns && (
@@ -140,7 +149,7 @@ export default function RequestTable({
           })}
         </div>
         {requests.length === 0 && (
-          <div className="flex items-center justify-center h-32 text-gray-500 text-xs">
+          <div className="flex items-center justify-center h-32 text-gray-400 text-xs">
             No requests captured. Navigate or trigger API calls to see network activity.
           </div>
         )}

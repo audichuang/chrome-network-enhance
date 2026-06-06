@@ -19,7 +19,7 @@ function App() {
     resourceType: 'fetch',
   })
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null)
 
@@ -77,17 +77,17 @@ function App() {
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
-    if (selectedIds.size > 0) {
-      setContextMenu({ x: e.clientX, y: e.clientY })
-    }
-  }, [selectedIds.size])
+    // 選單一律彈出；RequestTable 會在右擊未選列時先 onContextSelect 補上選取，
+    // 因此到此處時必有至少一個選取項可供操作。
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }, [])
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(null)
   }, [])
 
-  const showToast = useCallback((message: string) => {
-    setToast(message)
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
     setTimeout(() => setToast(null), 2000)
   }, [])
 
@@ -102,6 +102,12 @@ function App() {
     if (!event.shiftKey && !event.ctrlKey && !event.metaKey) {
       setDetailRequestId(id)
     }
+  }, [handleSelect])
+
+  const handleContextSelect = useCallback((id: string, allIds: string[]) => {
+    // 右鍵選取：單選該列並聚焦，但不開啟詳情面板
+    handleSelect(id, allIds, { shiftKey: false, ctrlKey: false, metaKey: false })
+    setFocusedId(id)
   }, [handleSelect])
 
   // 鍵盤快捷鍵所用 callback 進行穩定化
@@ -140,11 +146,13 @@ function App() {
         onClear={() => {
           clearRequests()
           setDetailRequestId(null)
+          clearSelection()
+          setFocusedId(null)
         }}
         isRecording={isRecording}
         onToggleRecording={toggleRecording}
         requestCount={requests.length}
-        selectedCount={selectedIds.size}
+        selectedCount={selectedRequests.length}
       />
       <div className="flex flex-1 min-h-0 min-w-0">
         {/* 左側請求列表 */}
@@ -159,6 +167,7 @@ function App() {
             searchTerm={filter.search}
             showDetailColumns={!detailRequest}
             onSelect={handleRowClick}
+            onContextSelect={handleContextSelect}
             onSelectAll={handleSelectAll}
             onContextMenu={handleContextMenu}
           />
@@ -169,7 +178,7 @@ function App() {
             <DetailPanel
               request={detailRequest}
               onClose={handleCloseDetail}
-              onCopySuccess={showToast}
+              onToast={showToast}
             />
           </div>
         )}
@@ -181,11 +190,11 @@ function App() {
           selectedRequests={selectedRequests}
           fetchResponseBody={fetchResponseBody}
           onClose={closeContextMenu}
-          onCopySuccess={showToast}
+          onToast={showToast}
           onClearSelection={clearSelection}
         />
       )}
-      {toast && <Toast message={toast} />}
+      {toast && <Toast message={toast.message} type={toast.type} />}
     </div>
   )
 }

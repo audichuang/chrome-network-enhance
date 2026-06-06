@@ -16,6 +16,12 @@ body {
   min-width: 0;
 }
 
+/* 全域鍵盤焦點可見性（select / button 等元素若有 outline-none 會被此規則覆蓋） */
+:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -1px;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

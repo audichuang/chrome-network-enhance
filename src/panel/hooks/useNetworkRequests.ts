@@ -138,14 +138,21 @@ export function useNetworkRequests() {
     // 4. 建立新的 Promise 進行非同步獲取並儲存
     const promise = new Promise<string | null>((resolve) => {
       nativeRequest.getContent((content) => {
-        const safeContent = content || ''
+        inflightBodyRequestsRef.current.delete(id)
+        // content == null 代表 getContent 失敗（Chrome DevTools API 無顯式錯誤訊號）。
+        // 保留 responseBody = null 以允許之後重試，不要寫入 '' 毒化快取（否則會靜默產出空 mock）。
+        // 注意：204/304/HEAD 等合法空 body 的 content 為 ''，仍走下方正常路徑寫入。
+        if (content == null) {
+          console.warn(`getContent failed for ${id}; response body left unloaded for retry.`)
+          resolve(null)
+          return
+        }
         setRequests((currentRequests) =>
           currentRequests.map((r) =>
-            r.id === id ? { ...r, responseBody: safeContent } : r
+            r.id === id ? { ...r, responseBody: content } : r
           )
         )
-        inflightBodyRequestsRef.current.delete(id)
-        resolve(safeContent)
+        resolve(content)
       })
     })
 
