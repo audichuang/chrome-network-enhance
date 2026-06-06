@@ -1,0 +1,4 @@
+# pnpm 11 預設封鎖相依套件的 build script，未核准會以 ERR_PNPM_IGNORED_BUILDS 中止安裝。
+# esbuild（vite 的底層）需要 postinstall 準備原生 binary，故在此明確核准。
+allowBuilds:
+  esbuild: true
